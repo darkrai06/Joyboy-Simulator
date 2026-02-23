@@ -1,0 +1,14 @@
+{
+  "name": "joyboy-simulator",
+  "version": "1.0.0",
+  "description": "Joyboy Simulator with React frontend and Python backend",
+  "scripts": {
+    "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && .\\venv\\Scripts\\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000\"",
+    "install-frontend": "cd frontend && npm install",
+    "install-backend": "cd backend && .\\venv\\Scripts\\pip.exe install -r requirements.txt",
+    "build-frontend": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
