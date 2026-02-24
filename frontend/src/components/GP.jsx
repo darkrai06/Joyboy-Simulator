@@ -1,32 +1,26 @@
-const GP = () => {
-  return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-4">Grameenphone</h1>
-      <p className="text-gray-600 mb-6">Manage Grameenphone services and data.</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold text-gray-800">Active Users</h2>
-          <p className="text-2xl font-bold text-green-600 mt-2">45,678</p>
-          <p className="text-sm text-gray-500 mt-1">+12% from last month</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold text-gray-800">Revenue</h2>
-          <p className="text-2xl font-bold text-blue-600 mt-2">$234,567</p>
-          <p className="text-sm text-gray-500 mt-1">+8% from last month</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold text-gray-800">Data Usage</h2>
-          <p className="text-2xl font-bold text-purple-600 mt-2">1.2 TB</p>
-          <p className="text-sm text-gray-500 mt-1">Daily average</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold text-gray-800">Support Tickets</h2>
-          <p className="text-2xl font-bold text-red-600 mt-2">23</p>
-          <p className="text-sm text-gray-500 mt-1">Open tickets</p>
-        </div>
+import { Phone } from 'lucide-react';
+import SimulatorPanel from './SimulatorPanel';
+
+const GP = () => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1100px' }}>
+    {/* Header */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{
+        width: '46px', height: '46px', borderRadius: '12px',
+        background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Phone size={22} style={{ color: '#22c55e' }} />
+      </div>
+      <div>
+        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Grameenphone</h1>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Configure & run network simulations</p>
       </div>
     </div>
-  );
-};
+
+    {/* Simulator */}
+    <SimulatorPanel operatorName="Grameenphone" accentColor="#22c55e" />
+  </div>
+);
 
 export default GP;
