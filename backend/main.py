@@ -139,6 +139,7 @@ def _build_simulation_response(
             upper=mc["ci_upper"],
         ),
         variance=mc["variance"],
+        std=mc["std"],
         risk_adjusted_profit=mc["risk_adjusted_profit"],
         profit_samples=mc["profit_samples"],
         profit_hist_bins=mc["profit_hist_bins"],
@@ -288,7 +289,7 @@ async def optimize(req: OptimizeRequest):
             pkg=optimal_pkg_def,
             mc=mc,
             sensitivity_data=sensitivity_data,
-            offers=[],
+            offers=bo_result.get("offers", []),
         )
 
         logger.info(
@@ -305,6 +306,7 @@ async def optimize(req: OptimizeRequest):
                 upper=mc["ci_upper"],
             ),
             variance=mc["variance"],
+            std=mc["std"],
             risk_adjusted_profit=mc["risk_adjusted_profit"],
             bo_convergence=bo_result["bo_convergence"],
             bo_evaluations=bo_result["bo_evaluations"],

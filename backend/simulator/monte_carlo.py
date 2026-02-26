@@ -147,14 +147,17 @@ def _sample_data_usage(n_users: int, params: SimParams, rng: np.random.Generator
     else:
         usage = rng.lognormal(params.mu_medium, params.sigma_medium, n_users)
 
-    return usage
+    # Cap extreme lognormal usage spikes (e.g., max 500 GB per period)
+    return np.minimum(usage, 500.0)
 
 
 def _sample_voice_usage(n_users: int, params: SimParams, rng: np.random.Generator) -> np.ndarray:
     """Sample per-user voice usage (minutes) from lognormal."""
     if n_users == 0:
         return np.array([])
-    return rng.lognormal(params.mu_voice, params.sigma_voice, n_users)
+    usage = rng.lognormal(params.mu_voice, params.sigma_voice, n_users)
+    # Cap extreme voice usage (e.g., max 10000 minutes per period)
+    return np.minimum(usage, 10000.0)
 
 
 # ── Network cost computation ──────────────────────────────────────────────────
@@ -289,11 +292,13 @@ def run_single_simulation(
 
         # Renewal (if enabled and not last period)
         if params.enable_renewal and period_idx < n_periods - 1:
-            renewal_rate = max(
-                0.0,
-                params.base_renewal_rate - params.renewal_decay * period_idx
-            )
-            renewal_rate = min(1.0, renewal_rate)
+            renewal_rate = params.base_renewal_rate - params.renewal_decay * period_idx
+            
+            # Floor renewal rate to prevent complete customer base collapse
+            # (equivalent to capping churn at some reasonable percentage)
+            min_renewal = 0.70  # Max 30% churn
+            renewal_rate = max(min_renewal, min(1.0, renewal_rate))
+            
             n_active = int(rng.binomial(n_active, renewal_rate))
             if n_active == 0:
                 break
@@ -372,7 +377,7 @@ def run_monte_carlo_offers(
             "std": mc["std"],
         })
 
-    offers.sort(key=lambda o: o["expected_profit"], reverse=True)
+    offers.sort(key=lambda o: o["risk_adjusted_profit"], reverse=True)
     return offers
 
 
@@ -408,7 +413,10 @@ def run_monte_carlo(
     ci_half = 1.96 * std_profit / math.sqrt(M)
     ci_lower = mean_profit - ci_half
     ci_upper = mean_profit + ci_half
-    risk_adjusted = mean_profit - params.risk_lambda * var_profit
+    
+    # Use standard deviation instead of variance for risk adjustment
+    # to avoid massive negative profit numbers due to Var(Π) scaling.
+    risk_adjusted = mean_profit - params.risk_lambda * std_profit
 
     # Convergence curve (running mean)
     convergence = [float(profit_samples[:i+1].mean()) for i in range(len(profit_samples))]

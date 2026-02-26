@@ -369,14 +369,14 @@ const Panel = ({ title, icon: Icon, children, color = 'rgba(255,255,255,0.1)', c
 
 // ─── Risk slider ───────────────────────────────────────────────────────────────
 
-const RiskPanel = ({ expectedProfit, variance, initialLambda, color }) => {
+const RiskPanel = ({ expectedProfit, variance, std, initialLambda, color }) => {
     const [lambda, setLambda] = useState(initialLambda || 0.5);
-    const riskAdj = expectedProfit - lambda * variance;
+    const riskAdj = expectedProfit - lambda * std;
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <MetricBadge label="E[Π] Expected Profit" value={fmtBDT(Math.round(expectedProfit))} color={color} />
-                <MetricBadge label="Var(Π) Variance" value={fmtBDT(Math.round(variance))} color="#f59e0b" />
+                <MetricBadge label="Std(Π) Std Dev" value={fmtBDT(Math.round(std))} color="#f59e0b" />
                 <MetricBadge label="Risk-Adjusted Profit" value={fmtBDT(Math.round(riskAdj))} color={riskAdj >= 0 ? '#34d399' : '#f87171'} />
             </div>
             <div>
@@ -396,7 +396,7 @@ const RiskPanel = ({ expectedProfit, variance, initialLambda, color }) => {
                 <div style={{ marginTop: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>Formula</div>
                     <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace' }}>
-                        RAP = E[Π] − λ·Var(Π) = {fmtBDT(Math.round(expectedProfit))} − {lambda.toFixed(2)}·{fmtBDT(Math.round(variance))} = <span style={{ color, fontWeight: 700 }}>{fmtBDT(Math.round(riskAdj))}</span>
+                        RAP = E[Π] − λ·Std(Π) = {fmtBDT(Math.round(expectedProfit))} − {lambda.toFixed(2)}·{fmtBDT(Math.round(std))} = <span style={{ color, fontWeight: 700 }}>{fmtBDT(Math.round(riskAdj))}</span>
                     </div>
                 </div>
             </div>
@@ -531,7 +531,7 @@ const SimulationResults = ({ result, accentColor = '#22c55e' }) => {
                 {[
                     { label: '95% CI Lower', value: fmtBDT(Math.round(simData.confidence_interval?.lower)), color: '#60a5fa' },
                     { label: '95% CI Upper', value: fmtBDT(Math.round(simData.confidence_interval?.upper)), color: '#60a5fa' },
-                    { label: 'Variance', value: fmtBDT(Math.round(simData.variance)), color: '#f59e0b' },
+                    { label: 'Std Dev', value: fmtBDT(Math.round(simData.std)), color: '#f59e0b' },
                     { label: 'Total Periods', value: simData.total_periods, color: '#a78bfa' },
                 ].map((m, i) => <MetricBadge key={i} {...m} />)}
             </div>
@@ -598,6 +598,7 @@ const SimulationResults = ({ result, accentColor = '#22c55e' }) => {
                 <RiskPanel
                     expectedProfit={simData.expected_profit}
                     variance={simData.variance}
+                    std={simData.std}
                     initialLambda={0.5}
                     color="#a78bfa"
                 />

@@ -200,6 +200,7 @@ class SimulationResponse(BaseModel):
     expected_profit: float
     confidence_interval: ConfidenceInterval
     variance: float
+    std: float
     risk_adjusted_profit: float
 
     # Distribution data
@@ -233,6 +234,7 @@ class OptimizeResponse(BaseModel):
     expected_profit: float
     confidence_interval: ConfidenceInterval
     variance: float
+    std: float
     risk_adjusted_profit: float
 
     # BO convergence

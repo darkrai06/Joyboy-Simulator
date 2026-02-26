@@ -52,7 +52,7 @@ def compute_sensitivity(
 
     def _eval(p: PackageSpec, par: SimParams) -> float:
         res = run_monte_carlo(p, par, M, base_seed, n_jobs=1)
-        return res["expected_profit"]
+        return res["risk_adjusted_profit"]
 
     results = []
 
