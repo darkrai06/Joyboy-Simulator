@@ -187,6 +187,73 @@ def run_single_simulation(
     }
 
 
+def run_monte_carlo_offers(
+    price: float,
+    data_cap: float,
+    params: SimParams,
+    M: int,
+    base_seed: int,
+    n_jobs: int = -1,
+) -> List[Dict[str, Any]]:
+    """
+    Generate and simulate multiple offer tiers around the anchor (price, data_cap).
+
+    Offer tiers are built by applying multipliers to the anchor values,
+    covering budget → standard → premium → unlimited-style ranges.
+    Each offer is independently simulated with run_monte_carlo.
+
+    Returns a list of offer dicts sorted by expected_profit descending.
+    """
+    # Define named tiers as (price_mult, cap_mult, label)
+    # Price multipliers span ~0.4x to 2.5x; cap multipliers span ~0.3x to 3x
+    TIER_DEFINITIONS = [
+        (0.40, 0.30, "Micro"),
+        (0.55, 0.50, "Budget"),
+        (0.70, 0.70, "Economy"),
+        (0.85, 0.85, "Basic"),
+        (1.00, 1.00, "Standard"),
+        (1.15, 1.30, "Plus"),
+        (1.35, 1.60, "Pro"),
+        (1.60, 2.00, "Elite"),
+        (2.00, 2.50, "Premium"),
+        (2.50, 3.00, "Unlimited"),
+    ]
+
+    offers = []
+    for price_mult, cap_mult, label in TIER_DEFINITIONS:
+        offer_price = round(price * price_mult, 2)
+        offer_cap = round(data_cap * cap_mult, 2)
+
+        # Skip degenerate offers
+        if offer_price <= 0 or offer_cap <= 0:
+            continue
+
+        mc = run_monte_carlo(
+            price=offer_price,
+            data_cap=offer_cap,
+            params=params,
+            M=M,
+            base_seed=base_seed,
+            n_jobs=n_jobs,
+        )
+
+        offers.append({
+            "label": label,
+            "price": offer_price,
+            "data_cap": offer_cap,
+            "expected_profit": mc["expected_profit"],
+            "risk_adjusted_profit": mc["risk_adjusted_profit"],
+            "ci_lower": mc["ci_lower"],
+            "ci_upper": mc["ci_upper"],
+            "variance": mc["variance"],
+            "std": mc["std"],
+        })
+
+    # Rank by expected profit descending
+    offers.sort(key=lambda o: o["expected_profit"], reverse=True)
+    return offers
+
+
 def run_monte_carlo(
     price: float,
     data_cap: float,

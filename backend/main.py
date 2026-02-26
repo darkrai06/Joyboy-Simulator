@@ -18,8 +18,9 @@ from simulator.models import (
     ConfidenceInterval,
     SensitivityItem,
     MonthlyProfit,
+    OfferResult,
 )
-from simulator.monte_carlo import SimParams, run_monte_carlo
+from simulator.monte_carlo import SimParams, run_monte_carlo, run_monte_carlo_offers
 from simulator.bayesian_opt import bayesian_optimize
 from simulator.sensitivity import compute_sensitivity
 
@@ -76,6 +77,7 @@ def _build_simulation_response(
     data_cap: float,
     mc: dict,
     sensitivity_data: list,
+    offers: list,
 ) -> SimulationResponse:
     """Convert raw MC result dict into SimulationResponse."""
     monthly = [
@@ -114,6 +116,20 @@ def _build_simulation_response(
         short_term_profit=mc["short_term_profit"],
         long_term_profit=mc["long_term_profit"],
         monthly_profits=monthly,
+        offers=[
+            OfferResult(
+                label=o["label"],
+                price=o["price"],
+                data_cap=o["data_cap"],
+                expected_profit=o["expected_profit"],
+                risk_adjusted_profit=o["risk_adjusted_profit"],
+                ci_lower=o["ci_lower"],
+                ci_upper=o["ci_upper"],
+                variance=o["variance"],
+                std=o["std"],
+            )
+            for o in offers
+        ],
         n_simulations_run=mc["n_simulations_run"],
         seed_used=mc["seed_used"],
     )
@@ -159,11 +175,22 @@ async def simulate(req: SimulateRequest):
             base_seed=req.seed,
         )
 
+        # Multi-offer comparison across price/cap ranges
+        offers_data = run_monte_carlo_offers(
+            price=req.price,
+            data_cap=req.data_cap,
+            params=params,
+            M=max(100, req.n_simulations // 5),  # lighter M for speed
+            base_seed=req.seed,
+            n_jobs=-1,
+        )
+
         response = _build_simulation_response(
             price=req.price,
             data_cap=req.data_cap,
             mc=mc_result,
             sensitivity_data=sensitivity_data,
+            offers=offers_data,
         )
         logger.info(f"[/simulate] E[Π]={mc_result['expected_profit']:.2f}")
         return response
@@ -218,6 +245,7 @@ async def optimize(req: OptimizeRequest):
             data_cap=opt_cap,
             mc=mc,
             sensitivity_data=sensitivity_data,
+            offers=[],
         )
 
         logger.info(f"[/optimize] optimal_price={opt_price:.2f}, optimal_cap={opt_cap:.2f}, E[Π]={mc['expected_profit']:.2f}")

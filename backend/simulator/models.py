@@ -113,6 +113,18 @@ class MonthlyProfit(BaseModel):
     cumulative_profit: float
 
 
+class OfferResult(BaseModel):
+    label: str                    # e.g. "Budget", "Standard", "Premium"
+    price: float
+    data_cap: float
+    expected_profit: float
+    risk_adjusted_profit: float
+    ci_lower: float
+    ci_upper: float
+    variance: float
+    std: float
+
+
 class SimulationResponse(BaseModel):
     # Core optimal results
     optimal_price: float
@@ -137,6 +149,9 @@ class SimulationResponse(BaseModel):
     short_term_profit: float              # mean profit months 1..T//2
     long_term_profit: float              # mean profit full T months
     monthly_profits: List[MonthlyProfit]  # per-month breakdown
+
+    # Multi-offer comparison (ranked by expected profit)
+    offers: List[OfferResult]
 
     # Meta
     n_simulations_run: int
