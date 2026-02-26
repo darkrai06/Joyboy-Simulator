@@ -1,9 +1,9 @@
 """
-FastAPI backend for the Monte Carlo Telecom Pricing Simulator.
+FastAPI backend for the One-Time Telecom Package Simulator.
 
 Endpoints:
-  POST /simulate  — Run Monte Carlo at a single (price, data_cap) point
-  POST /optimize  — Run Bayesian Optimization over (price, data_cap) ranges
+  POST /simulate  — Run Monte Carlo simulation for a single package
+  POST /optimize  — Run Bayesian Optimization to find the best package params
 """
 
 import logging
@@ -11,16 +11,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from simulator.models import (
+    PackageDefinition,
     SimulateRequest,
     OptimizeRequest,
     SimulationResponse,
     OptimizeResponse,
     ConfidenceInterval,
     SensitivityItem,
-    MonthlyProfit,
+    PeriodProfit,
     OfferResult,
 )
-from simulator.monte_carlo import SimParams, run_monte_carlo, run_monte_carlo_offers
+from simulator.monte_carlo import SimParams, PackageSpec, run_monte_carlo, run_monte_carlo_offers
 from simulator.bayesian_opt import bayesian_optimize
 from simulator.sensitivity import compute_sensitivity
 
@@ -28,14 +29,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Joyboy Telecom Pricing Simulator",
-    description="Monte Carlo + Bayesian Optimization for data package pricing",
-    version="2.0.0",
+    title="Joyboy Telecom Package Simulator",
+    description="Monte Carlo + Bayesian Optimization for one-time data/voice packages",
+    version="3.0.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # allow all origins for dev
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,13 +44,15 @@ app.add_middleware(
 
 
 def _req_to_params(req) -> SimParams:
-    """Build SimParams from request object (works for both request types)."""
+    """Build SimParams from request object."""
     return SimParams(
         N0=req.N0,
-        T=req.T,
+        T_days=req.T_days,
         discount_rate=req.discount_rate,
-        beta1=req.beta1,
-        beta2=req.beta2,
+        beta_data=req.beta_data,
+        beta_voice=req.beta_voice,
+        beta_price=req.beta_price,
+        beta_validity=req.beta_validity,
         sigma=req.sigma,
         use_mixture=req.use_mixture,
         mu_light=req.mu_light,
@@ -60,33 +63,63 @@ def _req_to_params(req) -> SimParams:
         pi_medium=req.pi_medium,
         mu_heavy=req.mu_heavy,
         sigma_heavy=req.sigma_heavy,
-        p_over=req.p_over,
-        c_gb=req.c_gb,
-        alpha0=req.alpha0,
-        alpha1=req.alpha1,
+        mu_voice=req.mu_voice,
+        sigma_voice=req.sigma_voice,
+        c_gb_3g=req.c_gb_3g,
+        c_gb_4g=req.c_gb_4g,
+        c_gb_5g=req.c_gb_5g,
+        pct_3g=req.pct_3g,
+        pct_4g=req.pct_4g,
+        pct_5g=req.pct_5g,
+        c_min=req.c_min,
+        p_over_data=req.p_over_data,
+        p_over_voice=req.p_over_voice,
+        enable_renewal=req.enable_renewal,
+        base_renewal_rate=req.base_renewal_rate,
+        renewal_decay=req.renewal_decay,
         risk_lambda=req.risk_lambda,
-        prospect_theory=req.prospect_theory,
-        prospect_alpha=req.prospect_alpha,
-        prospect_beta_pt=req.prospect_beta_pt,
-        prospect_lambda=req.prospect_lambda,
+    )
+
+
+def _pkg_to_spec(pkg: PackageDefinition) -> PackageSpec:
+    """Convert Pydantic PackageDefinition to PackageSpec dataclass."""
+    return PackageSpec(
+        data_gb=pkg.data_gb,
+        voice_min=pkg.voice_min,
+        validity_days=pkg.validity_days,
+        price=pkg.price,
+        label=pkg.label,
+    )
+
+
+def _spec_to_def(spec: PackageSpec) -> PackageDefinition:
+    """Convert PackageSpec dataclass to Pydantic PackageDefinition."""
+    return PackageDefinition(
+        data_gb=spec.data_gb,
+        voice_min=spec.voice_min,
+        validity_days=spec.validity_days,
+        price=spec.price,
+        label=spec.label,
     )
 
 
 def _build_simulation_response(
-    price: float,
-    data_cap: float,
+    pkg: PackageDefinition,
     mc: dict,
     sensitivity_data: list,
     offers: list,
 ) -> SimulationResponse:
     """Convert raw MC result dict into SimulationResponse."""
-    monthly = [
-        MonthlyProfit(
-            month=t + 1,
-            mean_profit=mc["mean_monthly_profits"][t],
-            cumulative_profit=sum(mc["mean_monthly_profits"][:t+1]),
+    period_profits = [
+        PeriodProfit(
+            period=pd["period"],
+            active_users=pd["active_users"],
+            revenue=pd["revenue"],
+            cost=pd["cost"],
+            profit=pd["profit"],
+            cumulative_profit=pd["cumulative_profit"],
         )
-        for t in range(len(mc["mean_monthly_profits"]))
+        for pd in mc["mean_period_data"]
     ]
 
     sensitivity = [
@@ -99,8 +132,7 @@ def _build_simulation_response(
     ]
 
     return SimulationResponse(
-        optimal_price=price,
-        optimal_data_cap=data_cap,
+        package=pkg,
         expected_profit=mc["expected_profit"],
         confidence_interval=ConfidenceInterval(
             lower=mc["ci_lower"],
@@ -113,14 +145,14 @@ def _build_simulation_response(
         profit_hist_counts=mc["profit_hist_counts"],
         convergence_data=mc["convergence_data"],
         sensitivity=sensitivity,
-        short_term_profit=mc["short_term_profit"],
-        long_term_profit=mc["long_term_profit"],
-        monthly_profits=monthly,
+        period_profits=period_profits,
         offers=[
             OfferResult(
                 label=o["label"],
+                data_gb=o["data_gb"],
+                voice_min=o["voice_min"],
+                validity_days=o["validity_days"],
                 price=o["price"],
-                data_cap=o["data_cap"],
                 expected_profit=o["expected_profit"],
                 risk_adjusted_profit=o["risk_adjusted_profit"],
                 ci_lower=o["ci_lower"],
@@ -132,66 +164,70 @@ def _build_simulation_response(
         ],
         n_simulations_run=mc["n_simulations_run"],
         seed_used=mc["seed_used"],
+        total_periods=mc["total_periods"],
     )
 
 
 @app.get("/")
 async def root():
-    return {"message": "Joyboy Telecom Pricing Simulator v2.0 — use /simulate or /optimize"}
+    return {"message": "Joyboy Telecom Package Simulator v3.0 — use /simulate or /optimize"}
 
 
 @app.get("/api/status")
 async def get_status():
-    return {"status": "running", "version": "2.0.0"}
+    return {"status": "running", "version": "3.0.0"}
 
 
 @app.post("/simulate", response_model=SimulationResponse)
 async def simulate(req: SimulateRequest):
     """
-    Run Monte Carlo simulation at a specific (price, data_cap).
-    Also computes sensitivity analysis.
+    Run Monte Carlo simulation for a single one-time package.
+    Also computes sensitivity analysis and multi-offer comparison.
     """
-    logger.info(f"[/simulate] price={req.price}, cap={req.data_cap}, M={req.n_simulations}")
+    pkg_def = req.package
+    logger.info(
+        f"[/simulate] {pkg_def.label}: {pkg_def.data_gb}GB, "
+        f"{pkg_def.voice_min}min, {pkg_def.validity_days}d, "
+        f"৳{pkg_def.price}, M={req.n_simulations}"
+    )
 
     try:
         params = _req_to_params(req)
+        pkg_spec = _pkg_to_spec(pkg_def)
 
         mc_result = run_monte_carlo(
-            price=req.price,
-            data_cap=req.data_cap,
+            pkg=pkg_spec,
             params=params,
             M=req.n_simulations,
             base_seed=req.seed,
             n_jobs=-1,
         )
 
-        # Sensitivity uses fewer simulations for speed
+        # Sensitivity (uses fewer simulations for speed)
         sens_M = min(200, req.n_simulations)
         sensitivity_data = compute_sensitivity(
-            price=req.price,
-            data_cap=req.data_cap,
+            pkg=pkg_spec,
             params=params,
             M=sens_M,
             base_seed=req.seed,
         )
 
-        # Multi-offer comparison across price/cap ranges
+        # Multi-offer comparison
         offers_data = run_monte_carlo_offers(
-            price=req.price,
-            data_cap=req.data_cap,
+            pkg=pkg_spec,
             params=params,
-            M=max(100, req.n_simulations // 5),  # lighter M for speed
+            M=max(100, req.n_simulations // 5),
             base_seed=req.seed,
             n_jobs=-1,
         )
 
         response = _build_simulation_response(
-            price=req.price,
-            data_cap=req.data_cap,
+            pkg=pkg_def,
             mc=mc_result,
             sensitivity_data=sensitivity_data,
             offers=offers_data,
         )
+
         logger.info(f"[/simulate] E[Π]={mc_result['expected_profit']:.2f}")
         return response
 
@@ -203,22 +239,31 @@ async def simulate(req: SimulateRequest):
 @app.post("/optimize", response_model=OptimizeResponse)
 async def optimize(req: OptimizeRequest):
     """
-    Run Bayesian Optimization to find profit-maximizing (price, data_cap).
+    Run Bayesian Optimization to find profit-maximizing package parameters.
     """
     logger.info(
-        f"[/optimize] price=[{req.price_min},{req.price_max}], "
-        f"cap=[{req.data_cap_min},{req.data_cap_max}], "
+        f"[/optimize] {len(req.packages)} packages, "
+        f"price=[{req.price_min},{req.price_max}], "
+        f"data=[{req.data_gb_min},{req.data_gb_max}]GB, "
+        f"voice=[{req.voice_min_min},{req.voice_min_max}]min, "
+        f"validity=[{req.validity_min},{req.validity_max}]d, "
         f"BO_iters={req.n_bo_iterations}"
     )
 
     try:
         params = _req_to_params(req)
+        pkg_specs = [_pkg_to_spec(p) for p in req.packages]
 
         bo_result = bayesian_optimize(
+            packages=pkg_specs,
             price_min=req.price_min,
             price_max=req.price_max,
-            data_cap_min=req.data_cap_min,
-            data_cap_max=req.data_cap_max,
+            data_gb_min=req.data_gb_min,
+            data_gb_max=req.data_gb_max,
+            voice_min_min=req.voice_min_min,
+            voice_min_max=req.voice_min_max,
+            validity_min=req.validity_min,
+            validity_max=req.validity_max,
             params=params,
             M=req.n_simulations,
             base_seed=req.seed,
@@ -227,32 +272,33 @@ async def optimize(req: OptimizeRequest):
         )
 
         mc = bo_result["full_mc_result"]
-        opt_price = bo_result["optimal_price"]
-        opt_cap = bo_result["optimal_data_cap"]
+        optimal_pkg = bo_result["optimal_package"]
+        optimal_pkg_def = _spec_to_def(optimal_pkg)
 
         # Sensitivity at optimal point
         sens_M = min(200, req.n_simulations)
         sensitivity_data = compute_sensitivity(
-            price=opt_price,
-            data_cap=opt_cap,
+            pkg=optimal_pkg,
             params=params,
             M=sens_M,
             base_seed=req.seed,
         )
 
         sim_response = _build_simulation_response(
-            price=opt_price,
-            data_cap=opt_cap,
+            pkg=optimal_pkg_def,
             mc=mc,
             sensitivity_data=sensitivity_data,
             offers=[],
         )
 
-        logger.info(f"[/optimize] optimal_price={opt_price:.2f}, optimal_cap={opt_cap:.2f}, E[Π]={mc['expected_profit']:.2f}")
+        logger.info(
+            f"[/optimize] optimal: {optimal_pkg.data_gb}GB, "
+            f"{optimal_pkg.voice_min}min, {optimal_pkg.validity_days}d, "
+            f"৳{optimal_pkg.price:.2f}, E[Π]={mc['expected_profit']:.2f}"
+        )
 
         return OptimizeResponse(
-            optimal_price=opt_price,
-            optimal_data_cap=opt_cap,
+            optimal_package=optimal_pkg_def,
             expected_profit=mc["expected_profit"],
             confidence_interval=ConfidenceInterval(
                 lower=mc["ci_lower"],

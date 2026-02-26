@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
     Play, RotateCcw, ChevronDown, DollarSign,
     Sliders, X, Zap, Settings, Target, Users,
-    TrendingUp, Hash, Shuffle, AlertCircle, Loader
+    TrendingUp, Hash, Shuffle, AlertCircle, Loader,
+    Plus, Trash2, Phone, Wifi, Clock, Package
 } from 'lucide-react';
 
 // ─── Reusable field components ─────────────────────────────────────────────
@@ -102,65 +103,148 @@ const SectionHeader = ({ icon: Icon, title, color }) => (
     </div>
 );
 
+// ─── Package Card ────────────────────────────────────────────────────────────
+
+const PackageCard = ({ pkg, index, onChange, onRemove, accentColor, disabled, showRemove }) => (
+    <div style={{
+        padding: '16px', borderRadius: '14px',
+        background: `${accentColor}08`,
+        border: `1px solid ${accentColor}25`,
+        display: 'flex', flexDirection: 'column', gap: '12px',
+    }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Package size={14} style={{ color: accentColor }} />
+                <span style={{ fontSize: '12px', fontWeight: 700, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Package {index + 1}
+                </span>
+            </div>
+            {showRemove && (
+                <button
+                    onClick={onRemove}
+                    disabled={disabled}
+                    style={{
+                        background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                        borderRadius: '7px', padding: '4px 8px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                        color: '#f87171', fontSize: '11px', fontWeight: 600, fontFamily: 'inherit',
+                    }}
+                >
+                    <Trash2 size={11} /> Remove
+                </button>
+            )}
+        </div>
+
+        {/* Label */}
+        <div>
+            <FieldLabel icon={Package} label="Label" color={accentColor} />
+            <InputField value={pkg.label} onChange={v => onChange('label', v)} type="text" placeholder="e.g. 1GB 7-day" accentColor={accentColor} disabled={disabled} />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+                <FieldLabel icon={Wifi} label="Data (GB)" required color={accentColor} />
+                <InputField value={pkg.data_gb} onChange={v => onChange('data_gb', v)} placeholder="1" min={0} step={0.5} suffix="GB" accentColor={accentColor} disabled={disabled} />
+            </div>
+            <div>
+                <FieldLabel icon={Phone} label="Voice (min)" color={accentColor} />
+                <InputField value={pkg.voice_min} onChange={v => onChange('voice_min', v)} placeholder="0" min={0} step={10} suffix="min" accentColor={accentColor} disabled={disabled} />
+            </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+                <FieldLabel icon={Clock} label="Validity (days)" required color={accentColor} />
+                <InputField value={pkg.validity_days} onChange={v => onChange('validity_days', v)} placeholder="7" min={1} max={365} suffix="days" accentColor={accentColor} disabled={disabled} />
+            </div>
+            <div>
+                <FieldLabel icon={DollarSign} label="Price (BDT)" required color={accentColor} />
+                <InputField value={pkg.price} onChange={v => onChange('price', v)} placeholder="100" min={1} suffix="৳" accentColor={accentColor} disabled={disabled} />
+            </div>
+        </div>
+    </div>
+);
+
 // ─── Default parameters ──────────────────────────────────────────────────────
 
+const DEFAULT_PACKAGE = {
+    data_gb: 1,
+    voice_min: 0,
+    validity_days: 7,
+    price: 100,
+    label: 'Standard',
+};
+
 const DEFAULT_PARAMS = {
-    // Simulation mode
-    mode: 'simulate',   // 'simulate' | 'optimize'
+    mode: 'simulate',
 
-    // Single-point (simulate)
-    price: 200,
-    data_cap: 10,
+    // Packages
+    packages: [{ ...DEFAULT_PACKAGE }],
 
-    // Ranges (optimize)
-    price_min: 50,
+    // Optimize search ranges
+    price_min: 10,
     price_max: 500,
-    data_cap_min: 1,
-    data_cap_max: 50,
+    data_gb_min: 0,
+    data_gb_max: 20,
+    voice_min_min: 0,
+    voice_min_max: 500,
+    validity_min: 1,
+    validity_max: 30,
 
     // Market
     N0: 10000,
-    T: 12,
+    T_days: 90,
     discount_rate: 0.01,
 
     // Acquisition
-    beta1: 0.5,
-    beta2: 0.05,
+    beta_data: 0.5,
+    beta_voice: 0.3,
+    beta_price: 0.05,
+    beta_validity: 0.2,
     sigma: 1.0,
 
-    // Usage
+    // Data usage
     use_mixture: true,
-    mu_light: 1.0,
+    mu_light: -0.5,
     sigma_light: 0.5,
     pi_light: 0.4,
-    mu_medium: 2.0,
+    mu_medium: 0.5,
     sigma_medium: 0.6,
     pi_medium: 0.4,
-    mu_heavy: 3.0,
+    mu_heavy: 1.5,
     sigma_heavy: 0.7,
 
-    // Pricing & Cost
-    p_over: 15,
-    c_gb: 5,
+    // Voice usage
+    mu_voice: 3.0,
+    sigma_voice: 0.8,
 
-    // Churn
-    alpha0: 0.02,
-    alpha1: 0.3,
+    // Network costs
+    c_gb_3g: 2,
+    c_gb_4g: 5,
+    c_gb_5g: 10,
+    pct_3g: 0.3,
+    pct_4g: 0.5,
+    pct_5g: 0.2,
+    c_min: 0.5,
+
+    // Overage
+    p_over_data: 15,
+    p_over_voice: 1.5,
+
+    // Renewal
+    enable_renewal: true,
+    base_renewal_rate: 0.6,
+    renewal_decay: 0.05,
 
     // Simulation settings
     n_simulations: 1000,
     seed: 42,
     risk_lambda: 0.5,
 
-    // Prospect theory
-    prospect_theory: false,
-    prospect_alpha: 0.88,
-    prospect_beta_pt: 0.88,
-    prospect_lambda: 2.25,
-
     // BO settings
     n_bo_iterations: 20,
     n_bo_init: 8,
+    T_months: 3,
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────
@@ -171,43 +255,144 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
     const [error, setError] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const set = key => val => setParams(p => ({ ...p, [key]: val }));
     const setNum = key => val => setParams(p => ({ ...p, [key]: val === '' ? '' : Number(val) }));
+    const set = key => val => setParams(p => ({ ...p, [key]: val }));
+
+    const updatePackage = (idx, field, val) => {
+        setParams(p => {
+            const pkgs = [...p.packages];
+            pkgs[idx] = {
+                ...pkgs[idx],
+                [field]: field === 'label' ? val : (val === '' ? '' : Number(val)),
+            };
+            return { ...p, packages: pkgs };
+        });
+    };
+
+    const addPackage = () => {
+        setParams(p => ({
+            ...p,
+            packages: [...p.packages, { ...DEFAULT_PACKAGE, label: `Package ${p.packages.length + 1}` }],
+        }));
+    };
+
+    const removePackage = (idx) => {
+        setParams(p => ({
+            ...p,
+            packages: p.packages.filter((_, i) => i !== idx),
+        }));
+    };
+
+    const buildSimBody = () => {
+        const pkg = params.packages[0] || DEFAULT_PACKAGE;
+        return {
+            package: {
+                data_gb: Number(pkg.data_gb),
+                voice_min: Number(pkg.voice_min),
+                validity_days: Number(pkg.validity_days),
+                price: Number(pkg.price),
+                label: pkg.label || 'Package',
+            },
+            N0: Number(params.N0),
+            T_days: Number(params.T_days),
+            discount_rate: Number(params.discount_rate),
+            beta_data: Number(params.beta_data),
+            beta_voice: Number(params.beta_voice),
+            beta_price: Number(params.beta_price),
+            beta_validity: Number(params.beta_validity),
+            sigma: Number(params.sigma),
+            use_mixture: params.use_mixture,
+            mu_light: Number(params.mu_light),
+            sigma_light: Number(params.sigma_light),
+            pi_light: Number(params.pi_light),
+            mu_medium: Number(params.mu_medium),
+            sigma_medium: Number(params.sigma_medium),
+            pi_medium: Number(params.pi_medium),
+            mu_heavy: Number(params.mu_heavy),
+            sigma_heavy: Number(params.sigma_heavy),
+            mu_voice: Number(params.mu_voice),
+            sigma_voice: Number(params.sigma_voice),
+            c_gb_3g: Number(params.c_gb_3g),
+            c_gb_4g: Number(params.c_gb_4g),
+            c_gb_5g: Number(params.c_gb_5g),
+            pct_3g: Number(params.pct_3g),
+            pct_4g: Number(params.pct_4g),
+            pct_5g: Number(params.pct_5g),
+            c_min: Number(params.c_min),
+            p_over_data: Number(params.p_over_data),
+            p_over_voice: Number(params.p_over_voice),
+            enable_renewal: params.enable_renewal,
+            base_renewal_rate: Number(params.base_renewal_rate),
+            renewal_decay: Number(params.renewal_decay),
+            n_simulations: Number(params.n_simulations),
+            seed: Number(params.seed),
+            risk_lambda: Number(params.risk_lambda),
+        };
+    };
+
+    const buildOptBody = () => {
+        const pkgs = params.packages.map(pkg => ({
+            data_gb: Number(pkg.data_gb),
+            voice_min: Number(pkg.voice_min),
+            validity_days: Number(pkg.validity_days),
+            price: Number(pkg.price),
+            label: pkg.label || 'Package',
+        }));
+        return {
+            packages: pkgs,
+            price_min: Number(params.price_min),
+            price_max: Number(params.price_max),
+            data_gb_min: Number(params.data_gb_min),
+            data_gb_max: Number(params.data_gb_max),
+            voice_min_min: Number(params.voice_min_min),
+            voice_min_max: Number(params.voice_min_max),
+            validity_min: Number(params.validity_min),
+            validity_max: Number(params.validity_max),
+            T_months: Number(params.T_months),
+            N0: Number(params.N0),
+            T_days: Number(params.T_days),
+            discount_rate: Number(params.discount_rate),
+            beta_data: Number(params.beta_data),
+            beta_voice: Number(params.beta_voice),
+            beta_price: Number(params.beta_price),
+            beta_validity: Number(params.beta_validity),
+            sigma: Number(params.sigma),
+            use_mixture: params.use_mixture,
+            mu_light: Number(params.mu_light),
+            sigma_light: Number(params.sigma_light),
+            pi_light: Number(params.pi_light),
+            mu_medium: Number(params.mu_medium),
+            sigma_medium: Number(params.sigma_medium),
+            pi_medium: Number(params.pi_medium),
+            mu_heavy: Number(params.mu_heavy),
+            sigma_heavy: Number(params.sigma_heavy),
+            mu_voice: Number(params.mu_voice),
+            sigma_voice: Number(params.sigma_voice),
+            c_gb_3g: Number(params.c_gb_3g),
+            c_gb_4g: Number(params.c_gb_4g),
+            c_gb_5g: Number(params.c_gb_5g),
+            pct_3g: Number(params.pct_3g),
+            pct_4g: Number(params.pct_4g),
+            pct_5g: Number(params.pct_5g),
+            c_min: Number(params.c_min),
+            p_over_data: Number(params.p_over_data),
+            p_over_voice: Number(params.p_over_voice),
+            enable_renewal: params.enable_renewal,
+            base_renewal_rate: Number(params.base_renewal_rate),
+            renewal_decay: Number(params.renewal_decay),
+            n_simulations: Number(params.n_simulations),
+            seed: Number(params.seed),
+            risk_lambda: Number(params.risk_lambda),
+            n_bo_iterations: Number(params.n_bo_iterations),
+            n_bo_init: Number(params.n_bo_init),
+        };
+    };
 
     const runSimulation = async () => {
         setLoading(true);
         setError(null);
         try {
-            const body = {
-                price: Number(params.price),
-                data_cap: Number(params.data_cap),
-                N0: Number(params.N0),
-                T: Number(params.T),
-                discount_rate: Number(params.discount_rate),
-                beta1: Number(params.beta1),
-                beta2: Number(params.beta2),
-                sigma: Number(params.sigma),
-                use_mixture: params.use_mixture,
-                mu_light: Number(params.mu_light),
-                sigma_light: Number(params.sigma_light),
-                pi_light: Number(params.pi_light),
-                mu_medium: Number(params.mu_medium),
-                sigma_medium: Number(params.sigma_medium),
-                pi_medium: Number(params.pi_medium),
-                mu_heavy: Number(params.mu_heavy),
-                sigma_heavy: Number(params.sigma_heavy),
-                p_over: Number(params.p_over),
-                c_gb: Number(params.c_gb),
-                alpha0: Number(params.alpha0),
-                alpha1: Number(params.alpha1),
-                n_simulations: Number(params.n_simulations),
-                seed: Number(params.seed),
-                risk_lambda: Number(params.risk_lambda),
-                prospect_theory: params.prospect_theory,
-                prospect_alpha: Number(params.prospect_alpha),
-                prospect_beta_pt: Number(params.prospect_beta_pt),
-                prospect_lambda: Number(params.prospect_lambda),
-            };
+            const body = buildSimBody();
             const res = await fetch('http://localhost:8000/simulate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -230,40 +415,7 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
         setLoading(true);
         setError(null);
         try {
-            const body = {
-                price_min: Number(params.price_min),
-                price_max: Number(params.price_max),
-                data_cap_min: Number(params.data_cap_min),
-                data_cap_max: Number(params.data_cap_max),
-                N0: Number(params.N0),
-                T: Number(params.T),
-                discount_rate: Number(params.discount_rate),
-                beta1: Number(params.beta1),
-                beta2: Number(params.beta2),
-                sigma: Number(params.sigma),
-                use_mixture: params.use_mixture,
-                mu_light: Number(params.mu_light),
-                sigma_light: Number(params.sigma_light),
-                pi_light: Number(params.pi_light),
-                mu_medium: Number(params.mu_medium),
-                sigma_medium: Number(params.sigma_medium),
-                pi_medium: Number(params.pi_medium),
-                mu_heavy: Number(params.mu_heavy),
-                sigma_heavy: Number(params.sigma_heavy),
-                p_over: Number(params.p_over),
-                c_gb: Number(params.c_gb),
-                alpha0: Number(params.alpha0),
-                alpha1: Number(params.alpha1),
-                n_simulations: Number(params.n_simulations),
-                seed: Number(params.seed),
-                risk_lambda: Number(params.risk_lambda),
-                prospect_theory: params.prospect_theory,
-                prospect_alpha: Number(params.prospect_alpha),
-                prospect_beta_pt: Number(params.prospect_beta_pt),
-                prospect_lambda: Number(params.prospect_lambda),
-                n_bo_iterations: Number(params.n_bo_iterations),
-                n_bo_init: Number(params.n_bo_init),
-            };
+            const body = buildOptBody();
             const res = await fetch('http://localhost:8000/optimize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -311,9 +463,9 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                         <Sliders size={19} style={{ color: accentColor }} />
                     </div>
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Monte Carlo Simulator</div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Package Simulator</div>
                         <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>
-                            Bayesian-optimized pricing engine · {operatorName}
+                            One-time package pricing engine · {operatorName}
                         </div>
                     </div>
                 </div>
@@ -335,8 +487,8 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     {[
-                        { val: 'simulate', label: 'Single Simulation', icon: Play, desc: 'Run MC at fixed (price, cap)' },
-                        { val: 'optimize', label: 'Bayesian Optimize', icon: Target, desc: 'Find optimal (price, cap)' },
+                        { val: 'simulate', label: 'Single Package', icon: Play, desc: 'Simulate one package offer' },
+                        { val: 'optimize', label: 'Bayesian Optimize', icon: Target, desc: 'Find optimal package params' },
                     ].map(({ val, label, icon: Icon, desc }) => (
                         <button
                             key={val}
@@ -360,6 +512,45 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                 </div>
             </div>
 
+            {/* ── Package Builder ─────────────────────────────────────── */}
+            <div style={{
+                background: '#1a1a25', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '14px', padding: '20px',
+                display: 'flex', flexDirection: 'column', gap: '14px',
+            }}>
+                <SectionHeader icon={Package} title={isSim ? 'Package Definition' : 'Initial Package Portfolio'} color={accentColor} />
+
+                {params.packages.map((pkg, idx) => (
+                    <PackageCard
+                        key={idx}
+                        pkg={pkg}
+                        index={idx}
+                        onChange={(field, val) => updatePackage(idx, field, val)}
+                        onRemove={() => removePackage(idx)}
+                        accentColor={accentColor}
+                        disabled={loading}
+                        showRemove={!isSim && params.packages.length > 1}
+                    />
+                ))}
+
+                {!isSim && (
+                    <button
+                        onClick={addPackage}
+                        disabled={loading}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                            padding: '10px', borderRadius: '10px', cursor: 'pointer',
+                            border: `1px dashed ${accentColor}40`,
+                            background: `${accentColor}08`,
+                            color: accentColor, fontFamily: 'inherit', fontSize: '12px', fontWeight: 700,
+                            transition: 'all 0.2s',
+                        }}
+                    >
+                        <Plus size={14} /> Add Package to Portfolio
+                    </button>
+                )}
+            </div>
+
             {/* ── Parameter Form ─────────────────────────────────────── */}
             <div style={{
                 background: '#1a1a25', border: '1px solid rgba(255,255,255,0.07)',
@@ -367,39 +558,42 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                 display: 'flex', flexDirection: 'column', gap: '20px',
             }}>
 
-                {/* Decision Variables */}
-                <div>
-                    <SectionHeader icon={DollarSign} title="Decision Variables" color={accentColor} />
-                    {isSim ? (
+                {/* Optimize search ranges (only in optimize mode) */}
+                {!isSim && (
+                    <div>
+                        <SectionHeader icon={Target} title="Search Ranges" color="#f59e0b" />
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                             <div>
-                                <FieldLabel icon={DollarSign} label="Price (BDT/month)" required color={accentColor} />
-                                <InputField value={params.price} onChange={setNum('price')} placeholder="200" min={1} suffix="৳" accentColor={accentColor} disabled={loading} />
-                            </div>
-                            <div>
-                                <FieldLabel icon={Sliders} label="Data Cap (GB)" required color={accentColor} />
-                                <InputField value={params.data_cap} onChange={setNum('data_cap')} placeholder="10" min={0.1} step={0.5} suffix="GB" accentColor={accentColor} disabled={loading} />
-                            </div>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                            <div>
-                                <FieldLabel icon={DollarSign} label="Price Range (BDT)" required color={accentColor} />
+                                <FieldLabel icon={DollarSign} label="Price Range (BDT)" color="#f59e0b" />
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                                    <InputField value={params.price_min} onChange={setNum('price_min')} placeholder="50" suffix="min" accentColor={accentColor} disabled={loading} />
-                                    <InputField value={params.price_max} onChange={setNum('price_max')} placeholder="500" suffix="max" accentColor={accentColor} disabled={loading} />
+                                    <InputField value={params.price_min} onChange={setNum('price_min')} placeholder="10" suffix="min" accentColor="#f59e0b" disabled={loading} />
+                                    <InputField value={params.price_max} onChange={setNum('price_max')} placeholder="500" suffix="max" accentColor="#f59e0b" disabled={loading} />
                                 </div>
                             </div>
                             <div>
-                                <FieldLabel icon={Sliders} label="Data Cap Range (GB)" required color={accentColor} />
+                                <FieldLabel icon={Wifi} label="Data Range (GB)" color="#f59e0b" />
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                                    <InputField value={params.data_cap_min} onChange={setNum('data_cap_min')} placeholder="1" suffix="min" accentColor={accentColor} disabled={loading} />
-                                    <InputField value={params.data_cap_max} onChange={setNum('data_cap_max')} placeholder="50" suffix="max" accentColor={accentColor} disabled={loading} />
+                                    <InputField value={params.data_gb_min} onChange={setNum('data_gb_min')} placeholder="0" suffix="min" accentColor="#f59e0b" disabled={loading} />
+                                    <InputField value={params.data_gb_max} onChange={setNum('data_gb_max')} placeholder="20" suffix="max" accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                            </div>
+                            <div>
+                                <FieldLabel icon={Phone} label="Voice Range (min)" color="#f59e0b" />
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                                    <InputField value={params.voice_min_min} onChange={setNum('voice_min_min')} placeholder="0" suffix="min" accentColor="#f59e0b" disabled={loading} />
+                                    <InputField value={params.voice_min_max} onChange={setNum('voice_min_max')} placeholder="500" suffix="max" accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                            </div>
+                            <div>
+                                <FieldLabel icon={Clock} label="Validity Range (days)" color="#f59e0b" />
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                                    <InputField value={params.validity_min} onChange={setNum('validity_min')} placeholder="1" suffix="min" accentColor="#f59e0b" disabled={loading} />
+                                    <InputField value={params.validity_max} onChange={setNum('validity_max')} placeholder="30" suffix="max" accentColor="#f59e0b" disabled={loading} />
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Market Parameters */}
                 <div>
@@ -410,63 +604,75 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                             <InputField value={params.N0} onChange={setNum('N0')} placeholder="10000" min={100} accentColor="#6366f1" disabled={loading} />
                         </div>
                         <div>
-                            <FieldLabel icon={Hash} label="Time Horizon (T)" color="#6366f1" />
-                            <InputField value={params.T} onChange={setNum('T')} placeholder="12" min={1} max={60} suffix="mo" accentColor="#6366f1" disabled={loading} />
+                            <FieldLabel icon={Clock} label="Horizon (T days)" color="#6366f1" />
+                            <InputField value={params.T_days} onChange={setNum('T_days')} placeholder="90" min={1} suffix="days" accentColor="#6366f1" disabled={loading} />
                         </div>
                         <div>
-                            <FieldLabel icon={TrendingUp} label="Discount Rate (r)" color="#6366f1" />
+                            <FieldLabel icon={TrendingUp} label="Discount Rate" color="#6366f1" />
                             <InputField value={params.discount_rate} onChange={setNum('discount_rate')} placeholder="0.01" min={0} max={0.5} step={0.001} accentColor="#6366f1" disabled={loading} />
                         </div>
                     </div>
                 </div>
 
-                {/* Acquisition Parameters */}
+                {/* Network Cost Model */}
                 <div>
-                    <SectionHeader icon={TrendingUp} title="Acquisition Model (Utility β₁·V(d) − β₂·p + ε)" color="#f59e0b" />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <SectionHeader icon={Wifi} title="Network Cost Model (Operator Expense)" color="#34d399" />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '12px' }}>
                         <div>
-                            <FieldLabel icon={TrendingUp} label="β₁ (data sensitivity)" color="#f59e0b" />
-                            <InputField value={params.beta1} onChange={setNum('beta1')} placeholder="0.5" step={0.01} accentColor="#f59e0b" disabled={loading} />
+                            <FieldLabel icon={DollarSign} label="3G Cost/GB" color="#34d399" />
+                            <InputField value={params.c_gb_3g} onChange={setNum('c_gb_3g')} placeholder="2" min={0} suffix="৳" accentColor="#34d399" disabled={loading} />
                         </div>
                         <div>
-                            <FieldLabel icon={TrendingUp} label="β₂ (price sensitivity)" color="#f59e0b" />
-                            <InputField value={params.beta2} onChange={setNum('beta2')} placeholder="0.05" step={0.005} accentColor="#f59e0b" disabled={loading} />
+                            <FieldLabel icon={DollarSign} label="4G Cost/GB" color="#34d399" />
+                            <InputField value={params.c_gb_4g} onChange={setNum('c_gb_4g')} placeholder="5" min={0} suffix="৳" accentColor="#34d399" disabled={loading} />
                         </div>
                         <div>
-                            <FieldLabel icon={Shuffle} label="σ (utility noise)" color="#f59e0b" />
-                            <InputField value={params.sigma} onChange={setNum('sigma')} placeholder="1.0" step={0.05} accentColor="#f59e0b" disabled={loading} />
+                            <FieldLabel icon={DollarSign} label="5G Cost/GB" color="#34d399" />
+                            <InputField value={params.c_gb_5g} onChange={setNum('c_gb_5g')} placeholder="10" min={0} suffix="৳" accentColor="#34d399" disabled={loading} />
+                        </div>
+                        <div>
+                            <FieldLabel icon={Phone} label="Voice Cost/min" color="#34d399" />
+                            <InputField value={params.c_min} onChange={setNum('c_min')} placeholder="0.5" min={0} step={0.1} suffix="৳" accentColor="#34d399" disabled={loading} />
+                        </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                        <div>
+                            <FieldLabel icon={Hash} label="% Users 3G" color="#34d399" />
+                            <InputField value={params.pct_3g} onChange={setNum('pct_3g')} placeholder="0.3" min={0} max={1} step={0.05} accentColor="#34d399" disabled={loading} />
+                        </div>
+                        <div>
+                            <FieldLabel icon={Hash} label="% Users 4G" color="#34d399" />
+                            <InputField value={params.pct_4g} onChange={setNum('pct_4g')} placeholder="0.5" min={0} max={1} step={0.05} accentColor="#34d399" disabled={loading} />
+                        </div>
+                        <div>
+                            <FieldLabel icon={Hash} label="% Users 5G" color="#34d399" />
+                            <InputField value={params.pct_5g} onChange={setNum('pct_5g')} placeholder="0.2" min={0} max={1} step={0.05} accentColor="#34d399" disabled={loading} />
                         </div>
                     </div>
                 </div>
 
-                {/* Churn Parameters */}
+                {/* Overage & Renewal */}
                 <div>
-                    <SectionHeader icon={X} title="Churn Model (α₀ + α₁·OverageRate)" color="#ef4444" />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <SectionHeader icon={DollarSign} title="Overage Pricing & Renewal" color="#f97316" />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                         <div>
-                            <FieldLabel icon={X} label="α₀ (base churn rate)" color="#ef4444" />
-                            <InputField value={params.alpha0} onChange={setNum('alpha0')} placeholder="0.02" step={0.005} max={1} accentColor="#ef4444" disabled={loading} />
+                            <FieldLabel icon={DollarSign} label="Data Overage/GB" color="#f97316" />
+                            <InputField value={params.p_over_data} onChange={setNum('p_over_data')} placeholder="15" min={0} suffix="৳" accentColor="#f97316" disabled={loading} />
                         </div>
                         <div>
-                            <FieldLabel icon={X} label="α₁ (overage churn sensitivity)" color="#ef4444" />
-                            <InputField value={params.alpha1} onChange={setNum('alpha1')} placeholder="0.3" step={0.05} max={5} accentColor="#ef4444" disabled={loading} />
+                            <FieldLabel icon={DollarSign} label="Voice Overage/min" color="#f97316" />
+                            <InputField value={params.p_over_voice} onChange={setNum('p_over_voice')} placeholder="1.5" min={0} step={0.1} suffix="৳" accentColor="#f97316" disabled={loading} />
+                        </div>
+                        <div>
+                            <FieldLabel icon={Hash} label="Renewal Rate" color="#f97316" />
+                            <InputField value={params.base_renewal_rate} onChange={setNum('base_renewal_rate')} placeholder="0.6" min={0} max={1} step={0.05} accentColor="#f97316" disabled={loading || !params.enable_renewal} />
+                        </div>
+                        <div>
+                            <FieldLabel icon={Hash} label="Renewal Decay" color="#f97316" />
+                            <InputField value={params.renewal_decay} onChange={setNum('renewal_decay')} placeholder="0.05" min={0} max={1} step={0.01} accentColor="#f97316" disabled={loading || !params.enable_renewal} />
                         </div>
                     </div>
-                </div>
-
-                {/* Cost & Overage */}
-                <div>
-                    <SectionHeader icon={DollarSign} title="Cost & Revenue Parameters" color="#34d399" />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <div>
-                            <FieldLabel icon={DollarSign} label="Cost per GB (c_gb)" color="#34d399" />
-                            <InputField value={params.c_gb} onChange={setNum('c_gb')} placeholder="5" min={0} suffix="৳/GB" accentColor="#34d399" disabled={loading} />
-                        </div>
-                        <div>
-                            <FieldLabel icon={DollarSign} label="Overage Price (p_over)" color="#34d399" />
-                            <InputField value={params.p_over} onChange={setNum('p_over')} placeholder="15" min={0} suffix="৳/GB" accentColor="#34d399" disabled={loading} />
-                        </div>
-                    </div>
+                    <ToggleSwitch value={params.enable_renewal} onChange={set('enable_renewal')} label="Enable Renewal (repeat purchases)" color="#f97316" disabled={loading} />
                 </div>
 
                 {/* Simulation Settings */}
@@ -486,13 +692,10 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                             <InputField value={params.risk_lambda} onChange={setNum('risk_lambda')} placeholder="0.5" min={0} step={0.05} accentColor="#a78bfa" disabled={loading} />
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <ToggleSwitch value={params.use_mixture} onChange={set('use_mixture')} label="Mixture Lognormal Usage" color="#a78bfa" disabled={loading} />
-                        <ToggleSwitch value={params.prospect_theory} onChange={set('prospect_theory')} label="Prospect Theory Utility" color="#a78bfa" disabled={loading} />
-                    </div>
+                    <ToggleSwitch value={params.use_mixture} onChange={set('use_mixture')} label="Mixture Lognormal Data Usage" color="#a78bfa" disabled={loading} />
                 </div>
 
-                {/* Advanced: BO settings + usage mixture params */}
+                {/* Advanced section */}
                 <button
                     onClick={() => setShowAdvanced(a => !a)}
                     style={{
@@ -511,10 +714,53 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
 
                 {showAdvanced && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '18px' }}>
-                        {/* Usage mixture */}
+
+                        {/* Acquisition Parameters */}
+                        <div>
+                            <SectionHeader icon={TrendingUp} title="Acquisition Model (Utility Function)" color="#f59e0b" />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+                                <div>
+                                    <FieldLabel icon={TrendingUp} label="β_data" color="#f59e0b" />
+                                    <InputField value={params.beta_data} onChange={setNum('beta_data')} step={0.01} accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                                <div>
+                                    <FieldLabel icon={TrendingUp} label="β_voice" color="#f59e0b" />
+                                    <InputField value={params.beta_voice} onChange={setNum('beta_voice')} step={0.01} accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                                <div>
+                                    <FieldLabel icon={TrendingUp} label="β_price" color="#f59e0b" />
+                                    <InputField value={params.beta_price} onChange={setNum('beta_price')} step={0.005} accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                                <div>
+                                    <FieldLabel icon={TrendingUp} label="β_validity" color="#f59e0b" />
+                                    <InputField value={params.beta_validity} onChange={setNum('beta_validity')} step={0.01} accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                                <div>
+                                    <FieldLabel icon={Shuffle} label="σ (noise)" color="#f59e0b" />
+                                    <InputField value={params.sigma} onChange={setNum('sigma')} step={0.05} accentColor="#f59e0b" disabled={loading} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Voice Usage */}
+                        <div>
+                            <SectionHeader icon={Phone} title="Voice Usage Distribution" color="#60a5fa" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                    <FieldLabel icon={Hash} label="μ_voice (log-mean)" color="#60a5fa" />
+                                    <InputField value={params.mu_voice} onChange={setNum('mu_voice')} step={0.1} accentColor="#60a5fa" disabled={loading} />
+                                </div>
+                                <div>
+                                    <FieldLabel icon={Hash} label="σ_voice (log-std)" color="#60a5fa" />
+                                    <InputField value={params.sigma_voice} onChange={setNum('sigma_voice')} step={0.05} min={0.01} accentColor="#60a5fa" disabled={loading} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Data Usage mixture */}
                         {params.use_mixture && (
                             <div>
-                                <SectionHeader icon={Users} title="Usage Mixture Model (Light / Medium / Heavy)" color="#60a5fa" />
+                                <SectionHeader icon={Users} title="Data Usage Mixture Model (Light / Medium / Heavy)" color="#60a5fa" />
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                                     {[
                                         { label: 'Light', color: '#34d399', prefix: 'light' },
@@ -545,11 +791,11 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                             </div>
                         )}
 
-                        {/* Bayesian Optimization settings (only in optimize mode) */}
+                        {/* BO settings (optimize mode only) */}
                         {!isSim && (
                             <div>
                                 <SectionHeader icon={Target} title="Bayesian Optimization Settings" color="#f59e0b" />
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                                     <div>
                                         <FieldLabel icon={Hash} label="BO Iterations" color="#f59e0b" />
                                         <InputField value={params.n_bo_iterations} onChange={setNum('n_bo_iterations')} placeholder="20" min={5} max={100} accentColor="#f59e0b" disabled={loading} />
@@ -558,26 +804,9 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                                         <FieldLabel icon={Hash} label="Initial Random Evals" color="#f59e0b" />
                                         <InputField value={params.n_bo_init} onChange={setNum('n_bo_init')} placeholder="8" min={3} max={30} accentColor="#f59e0b" disabled={loading} />
                                     </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Prospect Theory */}
-                        {params.prospect_theory && (
-                            <div>
-                                <SectionHeader icon={TrendingUp} title="Prospect Theory Parameters" color="#f97316" />
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                                     <div>
-                                        <FieldLabel icon={Hash} label="α (gain exponent)" color="#f97316" />
-                                        <InputField value={params.prospect_alpha} onChange={setNum('prospect_alpha')} step={0.01} min={0} max={1} accentColor="#f97316" disabled={loading} />
-                                    </div>
-                                    <div>
-                                        <FieldLabel icon={Hash} label="β (loss exponent)" color="#f97316" />
-                                        <InputField value={params.prospect_beta_pt} onChange={setNum('prospect_beta_pt')} step={0.01} min={0} max={1} accentColor="#f97316" disabled={loading} />
-                                    </div>
-                                    <div>
-                                        <FieldLabel icon={Hash} label="λ (loss aversion)" color="#f97316" />
-                                        <InputField value={params.prospect_lambda} onChange={setNum('prospect_lambda')} step={0.05} min={1} accentColor="#f97316" disabled={loading} />
+                                        <FieldLabel icon={Hash} label="Portfolio Months" color="#f59e0b" />
+                                        <InputField value={params.T_months} onChange={setNum('T_months')} placeholder="3" min={1} max={12} suffix="mo" accentColor="#f59e0b" disabled={loading} />
                                     </div>
                                 </div>
                             </div>
