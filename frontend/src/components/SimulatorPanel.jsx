@@ -513,7 +513,7 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
             </div>
 
             {/* ── Package Builder ─────────────────────────────────────── */}
-            <div style={{
+            {isSim && (<div style={{
                 background: '#1a1a25', border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: '14px', padding: '20px',
                 display: 'flex', flexDirection: 'column', gap: '14px',
@@ -533,7 +533,7 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                     />
                 ))}
 
-                {!isSim && (
+                {isSim && (
                     <button
                         onClick={addPackage}
                         disabled={loading}
@@ -549,7 +549,7 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                         <Plus size={14} /> Add Package to Portfolio
                     </button>
                 )}
-            </div>
+            </div>)}
 
             {/* ── Parameter Form ─────────────────────────────────────── */}
             <div style={{

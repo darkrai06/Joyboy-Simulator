@@ -83,7 +83,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed }) => {
 
   const menuItems = [
     { id: 'home', path: '/', label: 'Dashboard', icon: Home, description: 'Overview & stats' },
-    { id: 'gp', path: '/gp', label: 'Grameenphone', icon: Phone, description: 'Simulation & config' },
+    { id: 'gp', path: '/gp', label: 'Simulator', icon: Phone, description: 'Simulation & config' },
   ];
 
   return (

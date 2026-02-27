@@ -18,7 +18,7 @@ const GP = () => {
           <Phone size={22} style={{ color: '#22c55e' }} />
         </div>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Grameenphone</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Joyboy</h1>
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
             Monte Carlo pricing simulator · Bayesian optimization engine
           </p>
@@ -27,7 +27,7 @@ const GP = () => {
 
       {/* Simulator Panel */}
       <SimulatorPanel
-        operatorName="Grameenphone"
+        operatorName="Joyboy"
         accentColor="#22c55e"
         onResults={setResults}
       />
