@@ -232,7 +232,7 @@ const DEFAULT_PARAMS = {
     p_over_voice: 1.5,
 
     // Renewal
-    enable_renewal: true,
+    enable_renewal: false,
     base_renewal_rate: 0.6,
     renewal_decay: 0.05,
 
@@ -652,7 +652,7 @@ const SimulatorPanel = ({ operatorName, accentColor = '#22c55e', onResults }) =>
                 </div>
 
                 {/* Overage & Renewal */}
-                <div>
+                <div style={{ display: 'none' }}>
                     <SectionHeader icon={DollarSign} title="Overage Pricing & Renewal" color="#f97316" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                         <div>
